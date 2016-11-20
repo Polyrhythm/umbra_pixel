@@ -6,6 +6,7 @@ uniform float time;
 uniform vec2 resolution;
 
 const int MAX_STEPS = 32;
+const float FAR_CULLING_PLANE = 100.0;
 const float EPSILON = 0.001;
 
 /* DISTANCE FIELDS */
@@ -61,6 +62,10 @@ float raymarch(vec3 ro, vec3 rd) {
 	for (steps = 0; steps < MAX_STEPS; steps++) {
 		vec3 p = ro + rd * t;
 	    float d = distanceField(p);
+
+		if (d >= FAR_CULLING_PLANE) {
+			break;
+		}
 
 		if (d < EPSILON) {
 			break;
