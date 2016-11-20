@@ -15,4 +15,9 @@ because this is a pet project it will mostly be useful for me to practice raytra
 
 ### usage
 this is completely untested on basically everything, but should theoretically be cross-platform capable.
-i am running it on windows with VS2015.
+run the project and start editing `fragment_shader.frag`
+
+### features
+* resize your window to whatever you want on the fly
+* the fragment shader is recompiled every time theh file is saved
+* compile status outputs to `STDOUT`, check that if your shader doesn't update
