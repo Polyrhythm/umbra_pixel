@@ -7,7 +7,7 @@ uniform vec2 resolution;
 
 const int MAX_STEPS = 32;
 const float FAR_CULLING_PLANE = 100.0;
-const float EPSILON = 0.001;
+const float EPSILON = 0.01;
 
 /* DISTANCE FIELDS */
 
