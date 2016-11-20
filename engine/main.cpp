@@ -15,7 +15,13 @@ SDL_Window *mainWindow;
 SDL_GLContext mainContext;
 GLuint fragShader, vertShader;
 GLuint glProgram;
-GLuint vao, vbo[2];
+GLuint vao, vbo[1];
+int coordinateLocation = 0;
+GLsizei stride = 0;
+void* offset = 0;
+
+const unsigned int WINDOW_WIDTH = 1024;
+const unsigned int WINDOW_HEIGHT = 768;
 
 bool Init() {
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -27,7 +33,8 @@ bool Init() {
 		programName.c_str(),
 		SDL_WINDOWPOS_CENTERED,
 		SDL_WINDOWPOS_CENTERED,
-		1440, 900,
+		WINDOW_WIDTH,
+		WINDOW_HEIGHT,
 		SDL_WINDOW_OPENGL
 	);
 
@@ -53,10 +60,9 @@ bool Init() {
 
 bool SetOpenGLAttributes() {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
 	return true;
 }
@@ -68,7 +74,6 @@ int main(int argc, char *argv[]) {
 
 	glProgram = glCreateProgram();
 
-
 	// Create and link shaders.
 	vertShader = glCreateShader(GL_VERTEX_SHADER);
 	fragShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -79,8 +84,6 @@ int main(int argc, char *argv[]) {
 
 	linkShaders(std::vector<GLuint> {vertShader, fragShader}, glProgram);
 
-	glUseProgram(glProgram);
-
 	Render();
 	Cleanup();
 
@@ -88,47 +91,56 @@ int main(int argc, char *argv[]) {
 }
 
 void drawScene() {
-	const GLfloat diamond[4][2] = {
-		{ 0.0, 1.0 },
-		{ 1.0, 0.0 },
-		{ 0.0, -1.0 },
-		{ -1.0, 0.0 }
-	};
-
-	const GLfloat colors[4][3] = {
-		{ 1.0, 0.0, 0.0 },
-		{ 0.0, 1.0, 0.0 },
-		{ 0.0, 0.0, 1.0 },
-		{ 1.0, 1.0, 1.0 }
+	static const GLfloat quad[6][3] = {
+		{ -1.0f, -1.0f, 0.0f },
+		{  1.0f, -1.0f, 0.0f },
+		{ -1.0f,  1.0f, 0.0f },
+		{ -1.0f,  1.0f, 0.0f },
+		{  1.0f, -1.0f, 0.0f },
+		{  1.0f,  1.0f, 0.0f }
 	};
 
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
-	glGenBuffers(2, vbo);
+	glGenBuffers(1, vbo);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-	glBufferData(GL_ARRAY_BUFFER, 8 * sizeof(GLfloat), diamond, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glBufferData(GL_ARRAY_BUFFER, 18 * sizeof(GLfloat), quad, GL_STATIC_DRAW);
+	glVertexAttribPointer(coordinateLocation, 3, GL_FLOAT, GL_FALSE, stride, offset);
 	glEnableVertexAttribArray(0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-	glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(GLfloat), colors, GL_STATIC_DRAW);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-
-	glBindAttribLocation(glProgram, 0, "in_Position");
-	glBindAttribLocation(glProgram, 1, "in_Color");
 }
 
 void Render() {
 	bool loop = true;
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glDrawArrays(GL_LINE_LOOP, 0, 4);
-	SDL_GL_SwapWindow(mainWindow);
+
+	GLint timeLoc = glGetUniformLocation(glProgram, "time");
+	GLint resLoc = glGetUniformLocation(glProgram, "resolution");
 
 	while (loop) {
+		glClear(GL_COLOR_BUFFER_BIT);
+		glUseProgram(glProgram);
+
+		if (timeLoc != -1) {
+			glUniform1f(timeLoc, SDL_GetTicks() * 0.001);
+		}
+
+		if (resLoc != -1) {
+			glUniform2f(resLoc, WINDOW_WIDTH, WINDOW_HEIGHT);
+		}
+
+		std::cout << timeLoc << " : " << SDL_GetTicks() * 0.001 << std::endl;
+		std::cout << resLoc << " : " << WINDOW_WIDTH << " / " << WINDOW_HEIGHT << std::endl;
+
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glVertexAttribPointer(coordinateLocation, 3, GL_FLOAT, GL_FALSE, stride, offset);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glDisableVertexAttribArray(0);
+
+		SDL_GL_SwapWindow(mainWindow);
+
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT) {
@@ -152,13 +164,12 @@ void Render() {
 void Cleanup() {
 	glUseProgram(0);
 	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
 	glDetachShader(glProgram, vertShader);
 	glDetachShader(glProgram, fragShader);
 	glDeleteProgram(glProgram);
 	glDeleteShader(vertShader);
 	glDeleteShader(fragShader);
-	glDeleteBuffers(2, vbo);
+	glDeleteBuffers(1, vbo);
 	glDeleteVertexArrays(1, &vao);
 	SDL_GL_DeleteContext(mainContext);
 	SDL_DestroyWindow(mainWindow);

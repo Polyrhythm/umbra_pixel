@@ -13,7 +13,7 @@ GLuint loadShader(char *filename, GLuint shader) {
 	GLint result = GL_FALSE;
 	int logLength;
 
-	string preamble = "#version 150\n";
+	string preamble = "#version 330 core\n";
 	GLchar const* files[] = { preamble.c_str(), shaderSource };
 	glShaderSource(shader, 2, files, 0);
 
