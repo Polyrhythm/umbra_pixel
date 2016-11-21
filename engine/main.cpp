@@ -26,6 +26,15 @@ unsigned int windowHeight = 768;
 
 FileWatcher* watcher;
 
+// glUniforms
+GLint timeLoc;
+GLint resLoc;
+GLint deltaLoc;
+
+// Performance vars
+Uint64 lastFrame;
+Uint64 nowFrame;
+
 
 bool Init() {
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -120,15 +129,37 @@ void drawScene() {
 	glEnableVertexAttribArray(0);
 }
 
+void assignUniforms() {
+	if (timeLoc != -1) {
+		glUniform1f(timeLoc, SDL_GetTicks() * 0.001);
+	}
+
+	if (resLoc != -1) {
+		glUniform2f(resLoc, windowWidth, windowHeight);
+	}
+
+	if (deltaLoc != -1) {
+		glUniform1f(
+			deltaLoc,
+			(double)((nowFrame - lastFrame) * 1000 / SDL_GetPerformanceFrequency())
+		);
+	}
+}
+
 void Render() {
 	bool loop = true;
+	lastFrame = 0;
+	nowFrame;
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 
-	GLint timeLoc = glGetUniformLocation(glProgram, "time");
-	GLint resLoc = glGetUniformLocation(glProgram, "resolution");
+	timeLoc = glGetUniformLocation(glProgram, "time");
+	resLoc = glGetUniformLocation(glProgram, "resolution");
+	deltaLoc = glGetUniformLocation(glProgram, "deltaTime");
 
 	while (loop) {
+		nowFrame = SDL_GetPerformanceCounter();
+
 		// Check for changes on frag shader.
 		if (watcher->fileChanged()) {
 			// Reload frag shader.
@@ -140,14 +171,8 @@ void Render() {
 		glClear(GL_COLOR_BUFFER_BIT);
 		glUseProgram(glProgram);
 
-		if (timeLoc != -1) {
-			glUniform1f(timeLoc, SDL_GetTicks() * 0.001);
-		}
-
-		if (resLoc != -1) {
-			glUniform2f(resLoc, windowWidth, windowHeight);
-		}
-
+		assignUniforms();
+		
 		glEnableVertexAttribArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 		glVertexAttribPointer(coordinateLocation, 3, GL_FLOAT, GL_FALSE, stride, offset);
