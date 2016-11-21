@@ -1,5 +1,6 @@
 #include "main.h"
 #include "shader.h"
+#include "file.h"
 
 #include <string>
 #include <iostream>
@@ -20,8 +21,11 @@ int coordinateLocation = 0;
 GLsizei stride = 0;
 void* offset = 0;
 
-const unsigned int WINDOW_WIDTH = 1024;
-const unsigned int WINDOW_HEIGHT = 768;
+unsigned int windowWidth = 1024;
+unsigned int windowHeight = 768;
+
+FileWatcher* watcher;
+
 
 bool Init() {
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -33,9 +37,9 @@ bool Init() {
 		programName.c_str(),
 		SDL_WINDOWPOS_CENTERED,
 		SDL_WINDOWPOS_CENTERED,
-		WINDOW_WIDTH,
-		WINDOW_HEIGHT,
-		SDL_WINDOW_OPENGL
+		windowWidth,
+		windowHeight,
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
 	);
 
 	if (!mainWindow) {
@@ -63,6 +67,8 @@ bool SetOpenGLAttributes() {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	return true;
 }
@@ -80,11 +86,15 @@ int main(int argc, char *argv[]) {
 	loadShader("vertex_shader.vert", vertShader);
 	loadShader("fragment_shader.frag", fragShader);
 
+	// Watch for changes in frag shader.
+	watcher = new FileWatcher("fragment_shader.frag");
+
+	// Set up VAO, VBO, buffers. Render stuff.
 	drawScene();
-
 	linkShaders(std::vector<GLuint> {vertShader, fragShader}, glProgram);
-
 	Render();
+
+	// Cleanup only executed if render loop is broken.
 	Cleanup();
 
 	return 0;
@@ -119,6 +129,14 @@ void Render() {
 	GLint resLoc = glGetUniformLocation(glProgram, "resolution");
 
 	while (loop) {
+		// Check for changes on frag shader.
+		if (watcher->fileChanged()) {
+			// Reload frag shader.
+			if (loadShader("fragment_shader.frag", fragShader)) {
+				linkShaders(std::vector<GLuint> {fragShader}, glProgram);
+			}
+		}
+
 		glClear(GL_COLOR_BUFFER_BIT);
 		glUseProgram(glProgram);
 
@@ -127,11 +145,8 @@ void Render() {
 		}
 
 		if (resLoc != -1) {
-			glUniform2f(resLoc, WINDOW_WIDTH, WINDOW_HEIGHT);
+			glUniform2f(resLoc, windowWidth, windowHeight);
 		}
-
-		std::cout << timeLoc << " : " << SDL_GetTicks() * 0.001 << std::endl;
-		std::cout << resLoc << " : " << WINDOW_WIDTH << " / " << WINDOW_HEIGHT << std::endl;
 
 		glEnableVertexAttribArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
@@ -143,18 +158,27 @@ void Render() {
 
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
+
 			if (event.type == SDL_QUIT) {
 				loop = false;
 			}
 
-			if (event.type == SDL_KEYDOWN) {
-				switch (event.key.keysym.sym) {
-					case SDLK_ESCAPE:
-						loop = false;
-						break;
+			else if (event.type == SDL_KEYDOWN) {
+				const Uint8 *keystate = SDL_GetKeyboardState(NULL);
+				
+				if (keystate[SDL_SCANCODE_ESCAPE]) {
+					loop = false;
+					break;
+				}
+			}
 
-					default:
-						break;
+			else if (event.type == SDL_WINDOWEVENT) {
+				if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+					windowWidth = event.window.data1;
+					windowHeight = event.window.data2;
+					glViewport(0, 0, windowWidth, windowHeight);
+
+					break;
 				}
 			}
 		}

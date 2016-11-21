@@ -8,10 +8,9 @@
 
 using std::string;
 
-GLuint loadShader(char *filename, GLuint shader) {
+bool loadShader(char *filename, GLuint shader) {
 	char* shaderSource = readTextFile(filename);
 	GLint result = GL_FALSE;
-	int logLength;
 
 	string preamble = "#version 330 core\nout vec4 outColour;\n";
 	GLchar const* files[] = { preamble.c_str(), shaderSource };
@@ -21,17 +20,22 @@ GLuint loadShader(char *filename, GLuint shader) {
 	glCompileShader(shader);
 
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
-	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
-	std::vector<char> shaderLog((logLength > 1) ? logLength : 1);
-	glGetShaderInfoLog(shader, logLength, NULL, &shaderLog[0]);
-	std::cout << &shaderLog[0] << std::endl;
+	if (result == GL_FALSE) {
+		int logLength;
 
-	return shader;
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+		std::vector<char> shaderLog((logLength > 1) ? logLength : 1);
+		glGetShaderInfoLog(shader, logLength, NULL, &shaderLog[0]);
+		std::cout << &shaderLog[0] << std::endl;
+
+		return false;
+	}
+
+	return true;
 }
 
 GLuint linkShaders(std::vector<GLuint> shaders, GLuint program) {
 	GLint result = GL_FALSE;
-	int logLength;
 
 	using Iter = std::vector<GLuint>::const_iterator;
 	for (Iter iter = shaders.begin(); iter != shaders.end(); ++iter) {
@@ -41,10 +45,14 @@ GLuint linkShaders(std::vector<GLuint> shaders, GLuint program) {
 	glLinkProgram(program);
 
 	glGetProgramiv(program, GL_LINK_STATUS, &result);
-	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
-	std::vector<char> programLog((logLength > 1) ? logLength : 1);
-	glGetProgramInfoLog(program, logLength, NULL, &programLog[0]);
-	std::cout << &programLog[0] << std::endl;
+	if (result == GL_FALSE) {
+		int logLength;
+
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+		std::vector<char> programLog((logLength > 1) ? logLength : 1);
+		glGetProgramInfoLog(program, logLength, NULL, &programLog[0]);
+		std::cout << &programLog[0] << std::endl;
+	}
 
 	for (Iter iter = shaders.begin(); iter != shaders.end(); ++iter) {
 		glDeleteShader(*iter);

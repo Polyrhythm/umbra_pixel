@@ -79,7 +79,7 @@ float raymarch(vec3 ro, vec3 rd) {
 
 void main(void) {
 	vec2 q = gl_FragCoord.xy / resolution.xy;
-	q *= resolution.xy / resolution.x;
+	q *= resolution.xy / resolution.y;
 	vec2 uv = -1.0 + 2.0 * q;
 
 	vec3 eye = vec3(0.0, 0.0, -1.0);
