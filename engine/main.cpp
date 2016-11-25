@@ -129,6 +129,12 @@ void drawScene() {
 	glEnableVertexAttribArray(0);
 }
 
+void assignUniformLocations() {
+	timeLoc = glGetUniformLocation(glProgram, "time");
+	resLoc = glGetUniformLocation(glProgram, "resolution");
+	deltaLoc = glGetUniformLocation(glProgram, "deltaTime");
+}
+
 void assignUniforms() {
 	if (timeLoc != -1) {
 		glUniform1f(timeLoc, SDL_GetTicks() * 0.001);
@@ -153,9 +159,7 @@ void Render() {
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 
-	timeLoc = glGetUniformLocation(glProgram, "time");
-	resLoc = glGetUniformLocation(glProgram, "resolution");
-	deltaLoc = glGetUniformLocation(glProgram, "deltaTime");
+	assignUniformLocations();
 
 	while (loop) {
 		nowFrame = SDL_GetPerformanceCounter();
@@ -165,6 +169,7 @@ void Render() {
 			// Reload frag shader.
 			if (loadShader("fragment_shader.frag", fragShader)) {
 				linkShaders(std::vector<GLuint> {fragShader}, glProgram);
+				assignUniformLocations();
 			}
 		}
 
